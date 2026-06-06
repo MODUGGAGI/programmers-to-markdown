@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { examplesToMarkdownTable, generateNotionMarkdown, markdownTableToExamples } from "@/lib/markdown";
 import {
   createEmptyProblem,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/problem";
 
 type RequestState = "idle" | "loading" | "success" | "partial" | "failed";
+type PreviewMode = "markdown" | "preview";
 
 export function ProblemTool() {
   const [url, setUrl] = useState("");
@@ -21,6 +23,7 @@ export function ProblemTool() {
   const [missingFields, setMissingFields] = useState<MissingField[]>([]);
   const [failedSinceLastEdit, setFailedSinceLastEdit] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("markdown");
   const markdown = useMemo(() => generateNotionMarkdown(problem), [problem]);
   const exampleTable = useMemo(() => examplesToMarkdownTable(problem.examples), [problem.examples]);
   const hasMissingRequiredField = getManualMissingFields(problem).length > 0;
@@ -181,7 +184,7 @@ export function ProblemTool() {
                   type="button"
                   onClick={extract}
                   disabled={requestState === "loading"}
-                  className="mt-auto h-12 rounded bg-[#e50914] px-7 text-sm font-bold text-white shadow-lg shadow-red-950/40 transition hover:bg-[#f6121d] disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+                  className="mt-auto h-12 cursor-pointer rounded bg-[#e50914] px-7 text-sm font-bold text-white shadow-lg shadow-red-950/40 transition duration-150 hover:-translate-y-0.5 hover:bg-[#ff1824] hover:shadow-[0_0_34px_rgba(229,9,20,0.45)] hover:ring-2 hover:ring-red-400/45 active:translate-y-0 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400 disabled:shadow-none disabled:hover:translate-y-0 disabled:hover:ring-0"
                 >
                   {requestState === "loading" ? "추출 중" : "자동 추출"}
                 </button>
@@ -233,25 +236,317 @@ export function ProblemTool() {
                 <h2 className="text-2xl font-black tracking-tight text-white">Notion Markdown</h2>
                 <p className="mt-1 text-sm text-zinc-500">붙여넣기 전에 결과를 어두운 코드뷰로 확인</p>
               </div>
-              <button
-                type="button"
-                onClick={copyMarkdown}
-                aria-disabled={copyDisabled}
-                className="h-11 cursor-pointer rounded bg-[#e50914] px-6 text-sm font-bold text-white shadow-lg shadow-red-950/40 transition hover:bg-[#f6121d] aria-disabled:bg-zinc-700 aria-disabled:text-zinc-400 aria-disabled:shadow-none"
-              >
-                {copied ? "복사됨" : "복사"}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex rounded border border-zinc-800 bg-black p-1">
+                  {(["markdown", "preview"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setPreviewMode(mode)}
+                      className={`h-9 cursor-pointer rounded px-3 text-sm font-bold transition ${
+                        previewMode === mode
+                          ? "bg-zinc-100 text-zinc-950"
+                          : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+                      }`}
+                    >
+                      {mode === "markdown" ? "Markdown" : "미리보기"}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={copyMarkdown}
+                  aria-disabled={copyDisabled}
+                  className="h-11 cursor-pointer rounded bg-[#e50914] px-6 text-sm font-bold text-white shadow-lg shadow-red-950/40 transition duration-150 hover:-translate-y-0.5 hover:bg-[#ff1824] hover:shadow-[0_0_34px_rgba(229,9,20,0.45)] hover:ring-2 hover:ring-red-400/45 active:translate-y-0 aria-disabled:bg-zinc-700 aria-disabled:text-zinc-400 aria-disabled:shadow-none"
+                >
+                  {copied ? "복사됨" : "복사"}
+                </button>
+              </div>
             </div>
-            <textarea
-              value={markdown}
-              readOnly
-              aria-label="Notion Markdown preview"
-              className="min-h-[560px] flex-1 resize-none rounded border border-zinc-800 bg-black p-5 font-mono text-sm leading-6 text-zinc-200 outline-none selection:bg-red-500/40"
-            />
+            {previewMode === "markdown" ? (
+              <textarea
+                value={markdown}
+                readOnly
+                aria-label="Notion Markdown preview"
+                className="min-h-[560px] flex-1 resize-none rounded border border-zinc-800 bg-black p-5 font-mono text-sm leading-6 text-zinc-200 outline-none selection:bg-red-500/40"
+              />
+            ) : (
+              <MarkdownPreview markdown={markdown} />
+            )}
           </aside>
         </section>
       </div>
     </main>
+  );
+}
+
+type MarkdownBlock =
+  | { type: "heading"; level: 1 | 3; text: string }
+  | { type: "paragraph"; text: string }
+  | { type: "list"; items: string[] }
+  | { type: "code"; language: string; text: string }
+  | { type: "table"; rows: string[][] }
+  | { type: "hr" };
+
+function parseMarkdownPreview(markdown: string): MarkdownBlock[] {
+  const lines = markdown.split("\n");
+  const blocks: MarkdownBlock[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      index += 1;
+      continue;
+    }
+
+    const codeStart = trimmed.match(/^(`{3,})(.*)$/);
+
+    if (codeStart) {
+      const fence = codeStart[1];
+      const language = codeStart[2].trim();
+      const codeLines: string[] = [];
+      index += 1;
+
+      while (index < lines.length && lines[index].trim() !== fence) {
+        codeLines.push(lines[index]);
+        index += 1;
+      }
+
+      blocks.push({ type: "code", language, text: codeLines.join("\n") });
+      index += 1;
+      continue;
+    }
+
+    if (trimmed === "---") {
+      blocks.push({ type: "hr" });
+      index += 1;
+      continue;
+    }
+
+    if (trimmed.startsWith("# ")) {
+      blocks.push({ type: "heading", level: 1, text: trimmed.slice(2).trim() });
+      index += 1;
+      continue;
+    }
+
+    if (trimmed.startsWith("### ")) {
+      blocks.push({ type: "heading", level: 3, text: trimmed.slice(4).trim() });
+      index += 1;
+      continue;
+    }
+
+    if (trimmed.startsWith("|")) {
+      const tableLines: string[] = [];
+
+      while (index < lines.length && lines[index].trim().startsWith("|")) {
+        tableLines.push(lines[index].trim());
+        index += 1;
+      }
+
+      const rows = tableLines
+        .filter((row) => !/^\|\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(row))
+        .map((row) =>
+          row
+            .replace(/^\|/, "")
+            .replace(/\|$/, "")
+            .split(/(?<!\\)\|/)
+            .map((cell) => cell.replace(/\\\|/g, "|").replace(/<br\s*\/?>/gi, "\n").trim()),
+        );
+
+      blocks.push({ type: "table", rows });
+      continue;
+    }
+
+    if (trimmed.startsWith("- ")) {
+      const items: string[] = [];
+
+      while (index < lines.length && lines[index].trim().startsWith("- ")) {
+        items.push(lines[index].trim().slice(2));
+        index += 1;
+      }
+
+      blocks.push({ type: "list", items });
+      continue;
+    }
+
+    const paragraphLines: string[] = [];
+
+    while (index < lines.length) {
+      const current = lines[index].trim();
+
+      if (
+        !current ||
+        current === "---" ||
+        current.startsWith("# ") ||
+        current.startsWith("### ") ||
+        current.startsWith("|") ||
+        current.startsWith("- ") ||
+        /^`{3,}/.test(current)
+      ) {
+        break;
+      }
+
+      paragraphLines.push(current);
+      index += 1;
+    }
+
+    blocks.push({ type: "paragraph", text: paragraphLines.join("\n") });
+  }
+
+  return blocks;
+}
+
+function InlineMarkdown({ text }: { text: string }) {
+  return <>{renderInlineMarkdown(text)}</>;
+}
+
+function renderInlineMarkdown(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let cursor = 0;
+  const codePattern = /(`+)([\s\S]*?)\1/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = codePattern.exec(text))) {
+    if (match.index > cursor) {
+      nodes.push(...renderBoldMarkdown(text.slice(cursor, match.index), nodes.length));
+    }
+
+    nodes.push(
+      <code key={`code-${nodes.length}`} className="rounded bg-zinc-200 px-1.5 py-0.5 font-mono text-[0.92em] text-zinc-900">
+        {match[2].trim()}
+      </code>,
+    );
+    cursor = match.index + match[0].length;
+  }
+
+  if (cursor < text.length) {
+    nodes.push(...renderBoldMarkdown(text.slice(cursor), nodes.length));
+  }
+
+  return nodes;
+}
+
+function renderBoldMarkdown(text: string, keyOffset: number): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const boldPattern = /\*\*([^*]+)\*\*/g;
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = boldPattern.exec(text))) {
+    if (match.index > cursor) {
+      nodes.push(text.slice(cursor, match.index));
+    }
+
+    nodes.push(
+      <strong key={`bold-${keyOffset}-${nodes.length}`} className="font-bold text-zinc-950">
+        {match[1]}
+      </strong>,
+    );
+    cursor = match.index + match[0].length;
+  }
+
+  if (cursor < text.length) {
+    nodes.push(text.slice(cursor));
+  }
+
+  return nodes;
+}
+
+function MarkdownPreview({ markdown }: { markdown: string }) {
+  const blocks = useMemo(() => parseMarkdownPreview(markdown), [markdown]);
+
+  return (
+    <div
+      aria-label="Notion rendered preview"
+      className="min-h-[560px] flex-1 overflow-auto rounded border border-zinc-800 bg-[#fbfbfa] p-6 text-zinc-900 shadow-inner"
+    >
+      <div className="mx-auto flex max-w-3xl flex-col gap-4">
+        {blocks.map((block, index) => {
+          if (block.type === "heading" && block.level === 1) {
+            return (
+              <h1 key={index} className="mb-1 text-3xl font-bold leading-tight tracking-tight text-zinc-950">
+                <InlineMarkdown text={block.text} />
+              </h1>
+            );
+          }
+
+          if (block.type === "heading") {
+            return (
+              <h3 key={index} className="mt-3 text-xl font-bold leading-snug text-zinc-950">
+                <InlineMarkdown text={block.text} />
+              </h3>
+            );
+          }
+
+          if (block.type === "paragraph") {
+            return (
+              <p key={index} className="whitespace-pre-wrap text-[15px] leading-7 text-zinc-800">
+                <InlineMarkdown text={block.text} />
+              </p>
+            );
+          }
+
+          if (block.type === "list") {
+            return (
+              <ul key={index} className="list-disc space-y-1 pl-6 text-[15px] leading-7 text-zinc-800">
+                {block.items.map((item, itemIndex) => (
+                  <li key={itemIndex}>
+                    <InlineMarkdown text={item} />
+                  </li>
+                ))}
+              </ul>
+            );
+          }
+
+          if (block.type === "code") {
+            return (
+              <pre key={index} className="overflow-auto rounded bg-zinc-100 p-4 font-mono text-sm leading-6 text-zinc-900">
+                {block.language ? <span className="mb-2 block text-xs font-bold uppercase text-zinc-500">{block.language}</span> : null}
+                <code>{block.text}</code>
+              </pre>
+            );
+          }
+
+          if (block.type === "table") {
+            const [header, ...rows] = block.rows;
+
+            return (
+              <div key={index} className="overflow-auto rounded border border-zinc-200">
+                <table className="w-full min-w-max border-collapse text-left text-sm">
+                  {header ? (
+                    <thead className="bg-zinc-100 text-zinc-950">
+                      <tr>
+                        {header.map((cell, cellIndex) => (
+                          <th key={cellIndex} className="border-b border-zinc-200 px-3 py-2 font-bold">
+                            <InlineMarkdown text={cell} />
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                  ) : null}
+                  <tbody>
+                    {rows.map((row, rowIndex) => (
+                      <tr key={rowIndex} className="border-t border-zinc-100">
+                        {row.map((cell, cellIndex) => (
+                          <td key={cellIndex} className="whitespace-pre-wrap px-3 py-2 text-zinc-800">
+                            <InlineMarkdown text={cell} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          }
+
+          return <hr key={index} className="my-2 border-zinc-200" />;
+        })}
+      </div>
+    </div>
   );
 }
 
