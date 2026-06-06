@@ -155,12 +155,27 @@ export function ProblemTool() {
               <div className="flex flex-col gap-3 sm:flex-row">
                 <label className="flex flex-1 flex-col gap-2">
                   <span className="text-sm font-bold text-zinc-200">프로그래머스 URL</span>
-                  <input
-                    value={url}
-                    onChange={(event) => setUrl(event.target.value)}
-                    placeholder="https://school.programmers.co.kr/learn/courses/.../lessons/..."
-                    className="h-12 rounded border border-zinc-700 bg-black px-4 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-[#e50914] focus:ring-2 focus:ring-[#e50914]/25"
-                  />
+                  <div className="relative">
+                    <input
+                      value={url}
+                      onChange={(event) => setUrl(event.target.value)}
+                      placeholder="https://school.programmers.co.kr/learn/courses/.../lessons/..."
+                      className="h-12 w-full rounded border border-zinc-700 bg-black px-4 pr-11 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-[#e50914] focus:ring-2 focus:ring-[#e50914]/25"
+                    />
+                    {url ? (
+                      <button
+                        type="button"
+                        aria-label="URL 지우기"
+                        onClick={() => {
+                          setUrl("");
+                          setCopied(false);
+                        }}
+                        className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded text-lg font-bold text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#e50914]/35"
+                      >
+                        ×
+                      </button>
+                    ) : null}
+                  </div>
                 </label>
                 <button
                   type="button"
@@ -222,7 +237,7 @@ export function ProblemTool() {
                 type="button"
                 onClick={copyMarkdown}
                 aria-disabled={copyDisabled}
-                className="h-11 rounded bg-[#e50914] px-6 text-sm font-bold text-white shadow-lg shadow-red-950/40 transition hover:bg-[#f6121d] aria-disabled:cursor-not-allowed aria-disabled:bg-zinc-700 aria-disabled:text-zinc-400 aria-disabled:shadow-none"
+                className="h-11 cursor-pointer rounded bg-[#e50914] px-6 text-sm font-bold text-white shadow-lg shadow-red-950/40 transition hover:bg-[#f6121d] aria-disabled:bg-zinc-700 aria-disabled:text-zinc-400 aria-disabled:shadow-none"
               >
                 {copied ? "복사됨" : "복사"}
               </button>
@@ -233,19 +248,6 @@ export function ProblemTool() {
               aria-label="Notion Markdown preview"
               className="min-h-[560px] flex-1 resize-none rounded border border-zinc-800 bg-black p-5 font-mono text-sm leading-6 text-zinc-200 outline-none selection:bg-red-500/40"
             />
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                ["정수 삼각형", "DP"],
-                ["타겟 넘버", "DFS"],
-                ["2016년", "구현"],
-              ].map(([title, tag]) => (
-                <div key={title} className="min-w-0 rounded border border-zinc-800 bg-zinc-900/70 p-3">
-                  <div className="mb-2 h-1 rounded bg-[#e50914]" />
-                  <p className="truncate text-xs font-bold text-zinc-100">{title}</p>
-                  <p className="mt-1 text-xs text-zinc-500">{tag}</p>
-                </div>
-              ))}
-            </div>
           </aside>
         </section>
       </div>
