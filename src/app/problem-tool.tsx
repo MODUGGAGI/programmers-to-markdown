@@ -230,38 +230,32 @@ export function ProblemTool() {
             </div>
           </div>
 
-          <aside className="flex min-h-[760px] min-w-0 flex-col gap-4 rounded-lg border border-zinc-800 bg-[#0d0d0f]/95 p-4 shadow-2xl shadow-black/60 sm:p-5 lg:sticky lg:top-5 lg:max-h-[calc(100vh-40px)]">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-2xl font-black tracking-tight text-white">Notion Markdown</h2>
-                <p className="mt-1 text-sm text-zinc-500">붙여넣기 전에 결과를 어두운 코드뷰로 확인</p>
+          <aside className="flex min-h-[760px] min-w-0 flex-col gap-3 rounded-lg border border-zinc-800 bg-[#0d0d0f]/95 p-4 shadow-2xl shadow-black/60 sm:p-5 lg:sticky lg:top-5 lg:max-h-[calc(100vh-40px)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex rounded border border-zinc-800 bg-black p-0.5">
+                {(["markdown", "preview"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setPreviewMode(mode)}
+                    className={`h-8 cursor-pointer rounded px-2.5 text-xs font-bold transition sm:px-3 ${
+                      previewMode === mode
+                        ? "bg-zinc-100 text-zinc-950"
+                        : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-100"
+                    }`}
+                  >
+                    {mode === "markdown" ? "Markdown" : "미리보기"}
+                  </button>
+                ))}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex rounded border border-zinc-800 bg-black p-1">
-                  {(["markdown", "preview"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setPreviewMode(mode)}
-                      className={`h-9 cursor-pointer rounded px-3 text-sm font-bold transition ${
-                        previewMode === mode
-                          ? "bg-zinc-100 text-zinc-950"
-                          : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
-                      }`}
-                    >
-                      {mode === "markdown" ? "Markdown" : "미리보기"}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={copyMarkdown}
-                  aria-disabled={copyDisabled}
-                  className="h-11 cursor-pointer rounded bg-[#e50914] px-6 text-sm font-bold text-white shadow-lg shadow-red-950/40 transition duration-150 hover:-translate-y-0.5 hover:bg-[#ff1824] hover:shadow-[0_0_34px_rgba(229,9,20,0.45)] hover:ring-2 hover:ring-red-400/45 active:translate-y-0 aria-disabled:bg-zinc-700 aria-disabled:text-zinc-400 aria-disabled:shadow-none"
-                >
-                  {copied ? "복사됨" : "복사"}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={copyMarkdown}
+                aria-disabled={copyDisabled}
+                className="h-9 cursor-pointer rounded bg-[#e50914] px-5 text-sm font-bold text-white shadow-lg shadow-red-950/40 transition duration-150 hover:-translate-y-0.5 hover:bg-[#ff1824] hover:shadow-[0_0_34px_rgba(229,9,20,0.45)] hover:ring-2 hover:ring-red-400/45 active:translate-y-0 aria-disabled:bg-zinc-700 aria-disabled:text-zinc-400 aria-disabled:shadow-none"
+              >
+                {copied ? "복사됨" : "복사"}
+              </button>
             </div>
             {previewMode === "markdown" ? (
               <textarea
