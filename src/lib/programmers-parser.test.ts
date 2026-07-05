@@ -96,6 +96,56 @@ describe("parseProgrammersHtml", () => {
     });
   });
 
+  it("parses challenge pages whose description container starts with an inner problem title", () => {
+    const result = parseProgrammersHtml(
+      `
+      <html>
+        <head><title>코딩테스트 연습 - 실패율 | 프로그래머스 스쿨</title></head>
+        <body>
+          <span class="challenge-title">실패율</span>
+          <div class="guide-section-description">
+            <h6 class="guide-section-title">문제 설명</h6>
+            <div class="markdown solarized-dark">
+              <h2>실패율</h2>
+              <p>슈퍼 게임 개발자 오렐리는 큰 고민에 빠졌다.</p>
+              <p>실패율이 높은 스테이지부터 내림차순으로 return 하도록 solution 함수를 완성하라.</p>
+              <h5>제한사항</h5>
+              <ul>
+                <li>스테이지의 개수 N은 <code>1</code> 이상 <code>500</code> 이하의 자연수이다.</li>
+              </ul>
+              <h5>입출력 예</h5>
+              <table class="table">
+                <thead>
+                  <tr><th>N</th><th>stages</th><th>result</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>5</td><td>[2, 1, 2, 6, 2, 4, 3, 3]</td><td>[3, 4, 2, 1, 5]</td></tr>
+                </tbody>
+              </table>
+              <h5>입출력 예 설명</h5>
+              <p>입출력 예 #1<br>1번 스테이지에는 총 8명의 사용자가 도전했다.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+      `,
+      "https://school.programmers.co.kr/learn/courses/30/lessons/42889",
+    );
+
+    expect(result.status).toBe("success");
+    expect(result.data.title).toBe("실패율");
+    expect(result.data.description).toContain("슈퍼 게임 개발자 오렐리");
+    expect(result.data.description).toContain("solution 함수를 완성하라");
+    expect(result.data.description).not.toContain("제한사항");
+    expect(result.data.description).not.toContain("입출력 예");
+    expect(result.data.constraints).toContain("`1` 이상 `500` 이하");
+    expect(result.data.examples).toEqual({
+      headers: ["N", "stages", "result"],
+      rows: [["5", "[2, 1, 2, 6, 2, 4, 3, 3]", "[3, 4, 2, 1, 5]"]],
+    });
+    expect(result.data.exampleExplanation).toContain("입출력 예 #1");
+  });
+
   it("keeps problem images as markdown image links", () => {
     const result = parseProgrammersHtml(
       `

@@ -129,14 +129,28 @@ function nodeText($: cheerio.CheerioAPI, element: AnyNode, baseUrl: string) {
 
 function nodeTextBeforeInnerHeading($: cheerio.CheerioAPI, element: AnyNode, baseUrl: string) {
   const cloned = $(element).clone();
+  const sectionLabels = ["문제 설명", "제한사항", "제한 조건", "입출력 예", "입출력 예 설명", "입력", "출력"];
   const firstHeading = cloned.find("h1, h2, h3, h4, h5, h6").first();
 
   if (firstHeading.length === 0) {
     return nodeText($, element, baseUrl);
   }
 
-  firstHeading.nextAll().remove();
-  firstHeading.remove();
+  const firstHeadingText = normalizeText(firstHeading.text());
+
+  if (!sectionLabels.includes(firstHeadingText)) {
+    firstHeading.remove();
+  }
+
+  const firstSectionHeading = cloned
+    .find("h1, h2, h3, h4, h5, h6")
+    .toArray()
+    .find((heading) => sectionLabels.includes(normalizeText($(heading).text())));
+
+  if (firstSectionHeading) {
+    $(firstSectionHeading).nextAll().remove();
+    $(firstSectionHeading).remove();
+  }
 
   return nodeText($, cloned.get(0) ?? element, baseUrl);
 }
