@@ -146,6 +146,60 @@ describe("parseProgrammersHtml", () => {
     expect(result.data.exampleExplanation).toContain("입출력 예 #1");
   });
 
+  it("keeps explanatory tables inside problem descriptions as markdown tables", () => {
+    const result = parseProgrammersHtml(
+      `
+      <html>
+        <head><title>코딩테스트 연습 - 다리를 지나는 트럭</title></head>
+        <body>
+          <h2>다리를 지나는 트럭</h2>
+          <h6>문제 설명</h6>
+          <div class="markdown">
+            <p>트럭 여러 대가 강을 가로지르는 일차선 다리를 정해진 순으로 건너려 합니다.</p>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>경과 시간</th>
+                  <th>다리를 지난 트럭</th>
+                  <th>다리를 건너는 트럭</th>
+                  <th>대기 트럭</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>0</td><td>[]</td><td>[]</td><td>[7,4,5,6]</td></tr>
+                <tr><td>1~2</td><td>[]</td><td>[7]</td><td>[4,5,6]</td></tr>
+              </tbody>
+            </table>
+            <p>따라서 모든 트럭이 다리를 지나려면 8초가 걸립니다.</p>
+            <h5>제한사항</h5>
+            <ul>
+              <li>bridge_length는 1 이상 10,000 이하입니다.</li>
+            </ul>
+            <h5>입출력 예</h5>
+            <table class="table">
+              <thead><tr><th>bridge_length</th><th>weight</th><th>truck_weights</th><th>return</th></tr></thead>
+              <tbody><tr><td>2</td><td>10</td><td>[7,4,5,6]</td><td>8</td></tr></tbody>
+            </table>
+          </div>
+        </body>
+      </html>
+      `,
+      "https://school.programmers.co.kr/learn/courses/30/lessons/42583",
+    );
+
+    expect(result.status).toBe("success");
+    expect(result.data.description).toContain("| 경과 시간 | 다리를 지난 트럭 | 다리를 건너는 트럭 | 대기 트럭 |");
+    expect(result.data.description).toContain("| --- | --- | --- | --- |");
+    expect(result.data.description).toContain("| 0 | [] | [] | [7,4,5,6] |");
+    expect(result.data.description).toContain("| 1~2 | [] | [7] | [4,5,6] |");
+    expect(result.data.description).toContain("따라서 모든 트럭이 다리를 지나려면 8초");
+    expect(result.data.description).not.toContain("제한사항");
+    expect(result.data.examples).toEqual({
+      headers: ["bridge_length", "weight", "truck_weights", "return"],
+      rows: [["2", "10", "[7,4,5,6]", "8"]],
+    });
+  });
+
   it("keeps problem images as markdown image links", () => {
     const result = parseProgrammersHtml(
       `

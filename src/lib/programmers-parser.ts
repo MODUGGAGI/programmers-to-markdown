@@ -42,6 +42,36 @@ function escapeHtmlText(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+function escapeMarkdownTableCell(value: string) {
+  return normalizeText(value).replace(/\|/g, "\\|").replace(/\n/g, "<br />");
+}
+
+function tableToMarkdown($: cheerio.CheerioAPI, table: AnyNode) {
+  const rows = $(table)
+    .find("tr")
+    .toArray()
+    .map((row) =>
+      $(row)
+        .find("th, td")
+        .toArray()
+        .map((cell) => normalizeText($(cell).text())),
+    )
+    .filter((row) => row.some((cell) => cell.trim()));
+
+  if (rows.length === 0) {
+    return "";
+  }
+
+  const columnCount = Math.max(...rows.map((row) => row.length));
+  const [header, ...bodyRows] = rows.map((row) => Array.from({ length: columnCount }, (_, index) => row[index] ?? ""));
+
+  return [
+    `| ${header.map(escapeMarkdownTableCell).join(" | ")} |`,
+    `| ${header.map(() => "---").join(" | ")} |`,
+    ...bodyRows.map((row) => `| ${row.map(escapeMarkdownTableCell).join(" | ")} |`),
+  ].join("\n");
+}
+
 function replaceImagesWithMarkdown($: cheerio.CheerioAPI, element: cheerio.Cheerio<AnyNode>, baseUrl: string) {
   element.find("img").each((_, image) => {
     const src = $(image).attr("src") ?? "";
@@ -61,6 +91,13 @@ function replaceImagesWithMarkdown($: cheerio.CheerioAPI, element: cheerio.Cheer
     const alt = normalizeText($(image).attr("alt") ?? "");
     const markdown = alt ? `![${escapeMarkdownLabel(alt)}](<${resolvedUrl}>)` : `![](<${resolvedUrl}>)`;
     $(image).replaceWith(`\n${escapeHtmlText(markdown)}\n`);
+  });
+}
+
+function replaceTablesWithMarkdown($: cheerio.CheerioAPI, element: cheerio.Cheerio<AnyNode>) {
+  element.find("table").each((_, table) => {
+    const markdown = tableToMarkdown($, table);
+    $(table).replaceWith(markdown ? `\n${escapeHtmlText(markdown)}\n` : "");
   });
 }
 
@@ -98,24 +135,12 @@ function nodeText($: cheerio.CheerioAPI, element: AnyNode, baseUrl: string) {
   }
 
   if ($element.is("table")) {
-    const rows = $element
-      .find("tr")
-      .toArray()
-      .map((row) =>
-        $(row)
-          .find("th, td")
-          .toArray()
-          .map((cell) => normalizeText($(cell).text()))
-          .filter(Boolean)
-          .join(" | "),
-      )
-      .filter(Boolean);
-
-    return normalizeText(rows.join("\n"));
+    return normalizeText(tableToMarkdown($, element));
   }
 
   const cloned = $element.clone();
   replaceImagesWithMarkdown($, cloned, baseUrl);
+  replaceTablesWithMarkdown($, cloned);
   replaceFormattedNodesWithMarkdown($, cloned);
   cloned.find("br").replaceWith("\n");
   cloned.find("li").each((_, item) => {
